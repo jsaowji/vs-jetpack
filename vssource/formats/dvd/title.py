@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import datetime
+import os
+import subprocess
 from dataclasses import dataclass
 from itertools import count
 from typing import TYPE_CHECKING, Callable, Iterator, Sequence, SupportsIndex, overload, Optional
@@ -254,6 +256,71 @@ class Title:
     def _assert_dvdsrc2(self, func: FuncExceptT) -> None:
         if not self._dvdsrc_ranges:
             raise CustomValueError('Title needs to be opened with dvdsrc2!', func)
+
+    def dump_mkv(self, mkv_path: str, add_chapters: bool = True):
+        filename, file_extension = os.path.splitext(mkv_path)
+        if file_extension != ".mkv":
+            raise CustomValueError('Outpath needs to end in .mkv', self.dump_mkv)
+        vob_path, ogm_path = tuple([filename + a for a in [".vob", ".ogm"]])
+
+        if (os.path.exists(mkv_path) or os.path.exists(vob_path) or os.path.exists(ogm_path)):
+            raise CustomValueError('Some intermediary exists already', self.dump_mkv)
+
+        self.dump_vob(vob_path)
+
+        # chapters will probably only be proper with default rff_mode
+        # for 'proper' 100% ecurate chapter one would have to split the vob per chapter and mux them accordingly which probably isnt possible without addition code in mkvtoolnix
+        if add_chapters:
+            try:
+                from muxtools import Chapters
+                from fractions import Fraction
+            except ImportError:
+                raise CustomValueError('Chapters require muxtools', self.dump_mkv)
+
+            Chapters([(c, None) for c in self.chapters], fps=self.video.fps).to_file(ogm_path)
+            subprocess.run(["mkvmerge", "--chapters", ogm_path, vob_path, "-o", mkv_path])
+            os.unlink(vob_path)
+            os.unlink(ogm_path)
+        else:
+            subprocess.run(["mkvmerge", vob_path, "-o", mkv_path])
+            os.unlink(vob_path)
+
+    def dump_vob(self, outpath: str):
+        self._assert_dvdsrc2(self.dump_vob)
+        if not hasattr(vs.core.dvdsrc2, "RawVob"):
+            raise CustomValueError('Newer dvdsrc2 is needed for dump_raw', self.dump_vob)
+
+        nd = vs.core.dvdsrc2.RawVob(str(self._core.iso_path), self._vts, self._dvdsrc_ranges)
+
+        with open(outpath, 'wb') as wrt:
+            for f in nd.frames():
+                wrt.write(bytes(f[0]))
+
+    #TODO:
+    def dump_audio_raw(self, a: str, audio_i: int = 0) -> None:
+        try:
+            import numpy as np
+        except ImportError:
+            raise CustomValueError('dump_audio_raw requires numpy and ffmpeg', self.dump_audio_raw)
+
+        self._assert_dvdsrc2(self.dump_ac3)
+
+        if not self._audios[audio_i].startswith('lpcm'):
+            print("Dumping non lpcm")
+
+        an: vs.AudioNode = self.audios[audio_i]
+        format_string = {
+            (vs.FLOAT,32):"f32le",
+            (vs.INTEGER,16):"s16le",
+        }[(an.sample_type,an.bits_per_sample)]
+        
+        chanel = "2"
+
+        sp = subprocess.Popen(["ffmpeg","-loglevel","error","-hide_banner","-f",format_string,"-ar",str(an.sample_rate),"-ac",str(chanel),"-i","-","-y",a],stdin=subprocess.PIPE)
+        for a in an.frames():
+            sp.stdin.write(bytes(np.asarray(a).swapaxes(0,1)))
+        sp.stdin.close()
+        sp.wait()
 
     def dump_ac3(self, a: str, audio_i: int = 0, only_calc_delay: bool = False) -> float:
         self._assert_dvdsrc2(self.dump_ac3)

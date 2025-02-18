@@ -96,6 +96,13 @@ class IsoFileCore:
 
         self.title_count = len(self.ifo0.tt_srpt)
 
+    def dump_json(self, outfile: str):
+        our_json = to_json(self.ifo0, self.vts)
+        v = json.dumps(our_json, sort_keys=True)
+
+        with open(outfile, 'wt') as file:
+            file.write(v)
+
     def get_vts(self, title_set_nr: int = 1, d2v_our_rff: bool = False) -> vs.VideoNode:
         """
         Gets a full vts.
@@ -214,6 +221,14 @@ class IsoFileCore:
             tt, disable_rff, vobidcellids_to_take, target_vts, self.output_folder,
             [] if isinstance(self.indexer, DVDSRCIndexer) else self._get_title_vob_files_for_vts(tt.title_set_nr)
         )
+
+        def tag_vobids(n, f, vobids=vobids):
+            f2 = f.copy()
+
+            f2.props["vob"] = vobids[n][0] if n < len(vobids) else -1
+            f2.props["cell"] = vobids[n][1] if n < len(vobids) else -1
+            return f2
+        rnode = core.std.ModifyFrame(rnode, rnode, tag_vobids)
 
         region = Region.from_framerate(rnode.fps)
         rfps = region.framerate
