@@ -6,7 +6,7 @@ from os import name as os_name
 from shutil import which
 from subprocess import Popen
 from tempfile import gettempdir
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Literal, Protocol, Sequence
+from typing import Any, Callable, ClassVar, Iterable, Literal, Protocol, Sequence
 
 from vstools import (
     MISSING,
@@ -30,10 +30,6 @@ from vstools import (
 )
 
 from ..dataclasses import IndexFileType
-
-if TYPE_CHECKING:
-    pass
-
 
 __all__ = ["ExternalIndexer", "Indexer", "VSSourceFunc"]
 
