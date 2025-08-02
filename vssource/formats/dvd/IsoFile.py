@@ -1,14 +1,13 @@
 # noqa: N999
 
 import warnings
+from datetime import timedelta
 from fractions import Fraction
 from itertools import count
 from typing import cast
 
 from vstools import CustomValueError, DependencyNotFoundError, Region, SPath, core, get_prop, vs
 
-from datetime import timedelta
-from pathlib import Path
 from ...dataclasses import AllNeddedDvdFrameData
 from ...rff import apply_rff_array, apply_rff_video
 from .parsedvd import (

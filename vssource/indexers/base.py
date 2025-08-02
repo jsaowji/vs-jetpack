@@ -32,7 +32,7 @@ from vstools import (
 from ..dataclasses import IndexFileType
 
 if TYPE_CHECKING:
-    from ..formats.dvd.parsedvd import IFOX, IFO0Title
+    pass
 
 
 __all__ = ["ExternalIndexer", "Indexer", "VSSourceFunc"]
